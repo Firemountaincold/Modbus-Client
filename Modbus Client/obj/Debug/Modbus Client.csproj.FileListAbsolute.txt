@@ -1,0 +1,10 @@
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\bin\Debug\Modbus Client.exe.config
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\bin\Debug\Modbus Client.exe
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\bin\Debug\Modbus Client.pdb
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus_Client.Form1.resources
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus_Client.Properties.Resources.resources
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus Client.csproj.GenerateResource.cache
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus Client.csproj.CoreCompileInputs.cache
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus Client.exe
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus Client.pdb
+C:\Users\lenovo\source\repos\Modbus Client\Modbus Client\obj\Debug\Modbus Client.csprojAssemblyReference.cache
