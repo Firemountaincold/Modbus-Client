@@ -86,6 +86,7 @@ namespace Modbus_Client
             // 
             // buttondisconn
             // 
+            this.buttondisconn.Enabled = false;
             this.buttondisconn.Location = new System.Drawing.Point(48, 195);
             this.buttondisconn.Name = "buttondisconn";
             this.buttondisconn.Size = new System.Drawing.Size(132, 40);
