@@ -8,7 +8,8 @@
 实现了串口接收服务器回复的数据。  
 注意：read方法运行后bytestoread会归0，所以使用时定义要在read前面。  
 使用Socket完成UDP的发送和接收。
-
+## 窗口：
+![image](https://github.com/Firemountaincold/Modbus-Client/blob/main/Image.png)
 
 ## 更新文档： 
 ### 2021.3.18： 
@@ -22,4 +23,6 @@
 现在可以正确的收到RTU模式下服务器的回复。
 #### 1.3：
 加入了UDP收发的功能。
-
+### 2021.3.20：
+#### 1.4：
+修复了有关UDP连接导致程序崩溃的两个bug。
