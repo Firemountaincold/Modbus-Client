@@ -114,14 +114,24 @@ namespace Modbus_Client
             else
             {
                 IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
-                udpclient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                udpclient.Bind(ie);
+                try
+                {
+                    udpclient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
-                buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
-                Connected = true;
-                toolStripStatusLabel1.Text = "已启动UDP模式！";
-                output("已启动UDP模式。");
-                receivemess_udp(ie);
+                    buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
+                    Connected = true;
+                    toolStripStatusLabel1.Text = "已启动UDP模式！";
+                    output("已启动UDP模式。");
+                    receivemess_udp();
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("连接失败！", "警告", MessageBoxButtons.OK);
+                    toolStripStatusLabel1.Text = "连接失败！";
+                    output("未能连接到服务器。" + e.Message);
+                    unlockradio();
+                    return;
+                }
             }
         }
 
@@ -212,12 +222,18 @@ namespace Modbus_Client
             showmess(stringdata);
         }
 
-        public void receivemess_udp(EndPoint ie)
+        public void receivemess_udp()
         {
             while (true)
             {
                 byte[] data = new byte[1024];
-                udpclient.ReceiveFrom(data,ref ie);
+                IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text)-1);
+                UdpClient udpreceive = new UdpClient(remote);
+                EndPoint remoteEP = (EndPoint)remote;
+                //udpclient.Bind(remoteEP);
+                //udpclient.ReceiveFrom(data,ref remoteEP);
+                data = udpreceive.Receive(ref remote);
+                udpreceive.Close();
                 int length = data[5];//读取数据长度
                 Byte[] datashow = new byte[length + 6];//定义所要显示的接收的数据的长度
                 for (int i = 0; i <= length + 5; i++)//将要显示的数据存放到数组datashow中
@@ -528,7 +544,10 @@ namespace Modbus_Client
                 else
                 {
                     IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
+                    output("已发送功能码：" + BitConverter.ToString(data));
                     udpclient.SendTo(data,ie);
+                    toolStripStatusLabel1.Text = "发送成功！";
+                    output("已发送功能码：" + BitConverter.ToString(data));
                 } 
             }
             catch (Exception)
