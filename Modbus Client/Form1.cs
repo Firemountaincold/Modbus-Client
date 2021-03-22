@@ -59,6 +59,8 @@ namespace Modbus_Client
                     MessageBox.Show("连接失败！", "警告", MessageBoxButtons.OK);
                     toolStripStatusLabel1.Text = "连接失败！";
                     output("未能连接到服务器。" + e.Message);
+                    buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
+                    buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
                     unlockradio();
                     return;
                 }
@@ -92,6 +94,8 @@ namespace Modbus_Client
                 MessageBox.Show("串口开启失败！", "警告", MessageBoxButtons.OK);
                 toolStripStatusLabel1.Text = "串口失败！";
                 output("未能开启串口。" + ex.Message);
+                buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
+                buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
                 unlockradio();
                 return;
             }
@@ -113,7 +117,7 @@ namespace Modbus_Client
             //创建套接字
             else
             {
-                IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
+                IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port - 1);
                 try
                 {
                     udpclient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -130,6 +134,8 @@ namespace Modbus_Client
                     toolStripStatusLabel1.Text = "连接失败！";
                     output("未能连接到服务器。" + e.Message);
                     unlockradio();
+                    buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
+                    buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
                     return;
                 }
             }
@@ -226,18 +232,18 @@ namespace Modbus_Client
         {
             while (true)
             {
-                byte[] data = new byte[1024];
-                IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text)-1);
+                IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text) - 1);
                 UdpClient udpreceive = new UdpClient(remote);
                 EndPoint remoteEP = (EndPoint)remote;
-                //udpclient.Bind(remoteEP);
-                //udpclient.ReceiveFrom(data,ref remoteEP);
-                data = udpreceive.Receive(ref remote);
-                udpreceive.Close();
+                byte[] data = udpreceive.Receive(ref remote);
                 int length = data[5];//读取数据长度
                 Byte[] datashow = new byte[length + 6];//定义所要显示的接收的数据的长度
-                for (int i = 0; i <= length + 5; i++)//将要显示的数据存放到数组datashow中
+                for (int i = 0; i < length + 6; i++)//将要显示的数据存放到数组datashow中
                 {
+                    if (i == data.Length)
+                    {
+                        break;
+                    }
                     datashow[i] = data[i];
                 }
                 string stringdata = BitConverter.ToString(datashow);//把数组转换成16进制字符串
@@ -245,7 +251,7 @@ namespace Modbus_Client
                 showmess(stringdata);
                 if (stringdata == "00-00-00-00-00-00")
                 {
-                    disconnect();
+                    disconnect_udp();
                 }
                 else if (stringdata.Length == 26)
                 {
@@ -254,8 +260,10 @@ namespace Modbus_Client
                     this.BeginInvoke(output2, new object[] { "返回了一个异常码。" });
                     this.BeginInvoke(app, new object[] { "（异常码）" });
                 }
+
+                udpreceive.Close();
             }
-        }
+        }        
 
         private void buttonconn_Click(object sender, EventArgs e)
         {
@@ -544,10 +552,9 @@ namespace Modbus_Client
                 else
                 {
                     IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
-                    output("已发送功能码：" + BitConverter.ToString(data));
                     udpclient.SendTo(data,ie);
                     toolStripStatusLabel1.Text = "发送成功！";
-                    output("已发送功能码：" + BitConverter.ToString(data));
+                    output("已向"+ipaddress+"/"+port+"发送功能码：" + BitConverter.ToString(data));
                 } 
             }
             catch (Exception)
@@ -581,8 +588,8 @@ namespace Modbus_Client
         {
             if (MessageBox.Show("是否退出软件？", "询问", MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
-                Application.Exit();
                 Process.GetCurrentProcess().Kill();
+                Application.Exit();
             }
         }
 
@@ -646,7 +653,9 @@ namespace Modbus_Client
 
         public void disconnect_udp()
         {
+            udpclient.Dispose();
             udpclient.Close();
+            
             MyInvoke output2 = new MyInvoke(output);
             toolStripStatusLabel1.Text = "已释放资源。";
             this.BeginInvoke(output2, new object[] { "已经关闭UDP模式。" });
@@ -695,6 +704,19 @@ namespace Modbus_Client
             radioButtonrtu.BeginInvoke(new Action(() => { radioButtonrtu.Enabled = true; }));
             radioButtontcp.BeginInvoke(new Action(() => { radioButtontcp.Enabled = true; }));
             radioButtonudp.BeginInvoke(new Action(() => { radioButtonudp.Enabled = true; }));
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (MessageBox.Show("是否退出软件？", "询问", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                Process.GetCurrentProcess().Kill();
+                Application.Exit();
+            }
+            else
+            {
+                e.Cancel = true;
+            }
         }
     }
     public class CRC16Util

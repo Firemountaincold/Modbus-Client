@@ -370,6 +370,7 @@ namespace Modbus_Client
             this.MaximizeBox = false;
             this.Name = "Form1";
             this.Text = "Modbus Client";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.statusStrip1.ResumeLayout(false);
             this.statusStrip1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
