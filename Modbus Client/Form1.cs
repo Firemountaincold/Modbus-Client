@@ -5,21 +5,28 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using System.Threading;
 using System.IO.Ports;
-using System.Text;
 
 namespace Modbus_Client
 {
     public partial class Form1 : Form
     {
-        public Socket newclient;
-        public Socket udpclient;
-        public SerialPort comm = new SerialPort();
+        //创建通信类
+        public ModbusTCPClient mtcpc = new ModbusTCPClient();
+        public ModbusRTUClient mrtuc = new ModbusRTUClient();
+        public ModbusUDPClient mudpc = new ModbusUDPClient();
+        //创建标志
         public bool Connected = false;
+        public int Clientmode = 1;//客户端模式，1=TCP；2=RTU，3=UDP
+        //创建线程
         public Thread connThread;
         public Thread receThread;
+        //创建委托
         public delegate void MyInvoke(string str);
         public delegate void MyInvoke2();
-        public int Clientmode = 1;//客户端模式，1=TCP；2=RTU，3=UDP
+        //创建初始值
+        public int type=0x01;
+        public short add=0x00;
+        public short value=0x00;
         public Form1()
         {
             InitializeComponent();
@@ -27,6 +34,7 @@ namespace Modbus_Client
 
         public void Connect()
         {
+            //创建TCP连接
             string ipaddress = textBoxip.Text.Trim();
             int port = Convert.ToInt32(textBoxport.Text.Trim());//读取ip和端口号
 
@@ -42,13 +50,10 @@ namespace Modbus_Client
             else
             {
                 IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
-                newclient = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-
                 //连接服务器
                 try
                 {
-                    newclient.Connect(ie);
+                    mtcpc.Connect(ie);
                     buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
                     Connected = true;
                     toolStripStatusLabel1.Text = "连接成功！";
@@ -74,22 +79,17 @@ namespace Modbus_Client
 
         public void Connect_RTU()
         {
-            comm.PortName = textBoxcom.Text;
-            comm.BaudRate = 9600;
-            comm.Parity = Parity.None;
-            comm.StopBits = StopBits.One;
-            comm.DataBits = 8;
-            comm.ReadBufferSize = 1024;
-            comm.DataReceived += new SerialDataReceivedEventHandler(receivemess_rtu);
+            //创建RTU连接
             try
             {
-                comm.Open();
+                mrtuc.SetReceiveEvent(receivemess_rtu);
+                mrtuc.Connect(textBoxcom.Text);
                 buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
                 output("已进入串口通信模式。");
                 toolStripStatusLabel1.Text = "串口开启成功！";
                 Connected = true;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 MessageBox.Show("串口开启失败！", "警告", MessageBoxButtons.OK);
                 toolStripStatusLabel1.Text = "串口失败！";
@@ -103,55 +103,39 @@ namespace Modbus_Client
 
         public void Connect_UDP()
         {
-            string ipaddress = textBoxip.Text.Trim();
-            int port = Convert.ToInt32(textBoxport.Text.Trim());//读取ip和端口号
-
-            //检测IP格式是否正确
-            IPAddress ipa;
-            if (!System.Net.IPAddress.TryParse(ipaddress, out ipa))
+            //开启UDP模式
+            try
             {
-                MessageBox.Show("IP地址格式错误！", "警告", MessageBoxButtons.OK);
-                toolStripStatusLabel1.Text = "IP错误！";
-                output("未提供有效的IP地址。");
+                mudpc.Connect();
+                buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
+                Connected = true;
+                toolStripStatusLabel1.Text = "已启动UDP模式！";
+                output("已启动UDP模式。");
+                receivemess_udp();
             }
-            //创建套接字
-            else
+            catch (Exception e)
             {
-                IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port - 1);
-                try
-                {
-                    udpclient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-
-                    buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = false; }));
-                    Connected = true;
-                    toolStripStatusLabel1.Text = "已启动UDP模式！";
-                    output("已启动UDP模式。");
-                    receivemess_udp();
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("连接失败！", "警告", MessageBoxButtons.OK);
-                    toolStripStatusLabel1.Text = "连接失败！";
-                    output("未能连接到服务器。" + e.Message);
-                    unlockradio();
-                    buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
-                    buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
-                    return;
-                }
+                MessageBox.Show("连接失败！", "警告", MessageBoxButtons.OK);
+                toolStripStatusLabel1.Text = "连接失败！";
+                output("未能连接到服务器。" + e.Message);
+                unlockradio();
+                buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
+                buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
+                return;
             }
         }
 
         private void timersend_Tick(object sender, EventArgs e)
-        {
+        {                
+            //持续向TCP服务器发送消息以确定连接是否断开
             if (Clientmode == 1)
             {
-                //持续向服务器发送消息以确定连接是否断开
                 int isecond = 5000;//以毫秒为单位
                 timersend.Interval = isecond;//5秒触发一次
                 byte[] data = new byte[] { 0x00, 0x0f, 0x00, 0x00, 0x00, 0x06, 0x01, 0x04, 0x00, 0x00, 0x00, 0x01 };
                 try
                 {
-                    newclient.Send(data);
+                    mtcpc.Send(data);
                 }
                 catch (SocketException ee)
                 {
@@ -177,7 +161,7 @@ namespace Modbus_Client
                 byte[] data = new byte[1024];//定义数据接收数组
                 try
                 {
-                    newclient.Receive(data);//接收数据到data数组
+                    data = mtcpc.ReceiveMessage();//接收数据到data数组
 
                 }
                 catch (Exception)
@@ -201,7 +185,7 @@ namespace Modbus_Client
                 showmess(stringdata);
                 if (stringdata == "00-00-00-00-00-00")
                 {
-                    disconnect();
+                    mtcpc.Disconnect();
                 }
                 else if (stringdata.Length == 26)
                 {
@@ -215,17 +199,14 @@ namespace Modbus_Client
 
         public void receivemess_rtu(object sender, SerialDataReceivedEventArgs e)
         {
-            SerialPort _comm = (SerialPort)sender;
-            byte[] data = new byte[1024];//定义数据接收数组
-            int length = comm.BytesToRead;
-            _comm.Read(data, 0, comm.BytesToRead);          //注意，read方法运行后bytestoread会归0，所以length定义要在前面。
-            byte[] datashow = new byte[length];//定义所要显示的接收的数据的长度
-            for (int i = 0; i < length; i++)//将要显示的数据存放到数组datashow中
+            //用事件接收数据
+            mrtuc._comm = (SerialPort)sender;
+            byte[] data = mrtuc.ReceiveMessage(mrtuc._comm);
+            string stringdata = BitConverter.ToString(data);
+            if (stringdata != "")
             {
-                datashow[i] = data[i];
+                showmess(stringdata);
             }
-            string stringdata = BitConverter.ToString(datashow);//把数组转换成16进制字符串
-            showmess(stringdata);
         }
 
         public void receivemess_udp()
@@ -233,25 +214,13 @@ namespace Modbus_Client
             while (true)
             {
                 IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text) - 1);
-                UdpClient udpreceive = new UdpClient(remote);
-                EndPoint remoteEP = (EndPoint)remote;
-                byte[] data = udpreceive.Receive(ref remote);
-                int length = data[5];//读取数据长度
-                Byte[] datashow = new byte[length + 6];//定义所要显示的接收的数据的长度
-                for (int i = 0; i < length + 6; i++)//将要显示的数据存放到数组datashow中
-                {
-                    if (i == data.Length)
-                    {
-                        break;
-                    }
-                    datashow[i] = data[i];
-                }
+                byte[] datashow = mudpc.ReceiveMessage(remote);
                 string stringdata = BitConverter.ToString(datashow);//把数组转换成16进制字符串
 
                 showmess(stringdata);
                 if (stringdata == "00-00-00-00-00-00")
                 {
-                    disconnect_udp();
+                    mudpc.Disconnect();
                 }
                 else if (stringdata.Length == 26)
                 {
@@ -261,9 +230,9 @@ namespace Modbus_Client
                     this.BeginInvoke(app, new object[] { "（异常码）" });
                 }
 
-                udpreceive.Close();
+                
             }
-        }        
+        }
 
         private void buttonconn_Click(object sender, EventArgs e)
         {
@@ -293,170 +262,107 @@ namespace Modbus_Client
             buttondisconn.Enabled = true;
         }
 
-        public string[] getcode()
-        {
-            string[] str = new string[13];
-            str[0] = "00-01-00-00-00-06-01-01-00-14-00-13";
-            str[1] = "00-01-00-00-00-06-01-02-00-C5-00-16";
-            str[2] = "00-01-00-00-00-06-01-03-00-6C-00-03";
-            str[3] = "00-01-00-00-00-06-01-04-00-09-00-01";
-            str[4] = "00-01-00-00-00-06-01-05-00-AD-FF-00";
-            str[5] = "00-01-00-00-00-06-01-06-00-02-00-03";
-            str[6] = "00-01-00-00-00-09-01-0F-00-14-00-0A-02-CD-01";
-            str[7] = "00-01-00-00-00-0A-01-10-00-02-00-02-04-00-0A-01-02";
-            str[8] = "00-01-00-00-00-10-01-14-0C-06-00-04-00-01-00-02-06-00-03-00-09-00-02";
-            str[9] = "00-01-00-00-00-0F-01-15-0D-06-00-04-00-07-00-03-06-AF-04-BE-10-0D";
-            str[10] = "00-01-00-00-00-08-01-16-00-04-00-F2-00-25";
-            str[11] = "00-01-00-00-00-10-01-17-00-04-00-06-00-0F-00-03-06-00-FF-00-FF-00-FF";
-            str[12] = "00-01-00-00-00-05-01-2B-0E-01-00";
-            string[] sput = new string[13];
-
-            int j = 0;
-            if (Clientmode == 1)
-            {
-                foreach (string i in str)
-                {
-                    sput[j] = i;
-                    j++;
-                }
-            }
-            else if (Clientmode == 2)
-            {
-                foreach (string i in str)
-                {
-                    sput[j] = i.Substring(18, i.Length - 18);
-                    j++;
-                }
-            }
-            else
-            {
-                foreach (string i in str)
-                {
-                    sput[j] = i;
-                    j++;
-                }
-            }
-            return sput;
-        }
-
-
-        public String getCrc16Code(byte[] crcbyte)
-        {
-            // 生成CRC校验码
-            // 转换成字节数组  
-            // 开始crc16校验码计算  
-            CRC16Util crc16 = new CRC16Util();
-            crc16.update(crcbyte);
-            uint crc = crc16.getCrcValue();//使用uint是因为使用int时最高位为1会变为负数。
-            // 16进制的CRC码  
-            String crcCode = Convert.ToString(crc, 16).ToUpper();
-            // 补足到4位  
-            if (crcCode.Length < 4)
-            {
-                crcCode = crcCode.PadLeft(4, '0');
-            }
-            return crcCode;
-        }
-
         private void comboBoxcode_SelectedIndexChanged(object sender, EventArgs e)
         {
-            //示例的功能码
-            string[] sput=getcode();
             //显示功能码的功能
             switch (comboBoxcode.SelectedIndex)
             {
                 case 0:
                     {
-                        
-                        textBoxfunc.Text = "功能码0x01：读线圈。\r\n" +
-                            "示例：\r\n" + sput[0];
-                        textBoxcode.Text = sput[0];
+                        type = 0x01;
+                        textBoxfunc.Text = "功能码0x01：读线圈。\r\n";
                         break;
                     }
                 case 1:
                     {
-                        textBoxfunc.Text = "功能码0x02：读输入离散量。\r\n" +
-                            "示例：\r\n" + sput[1];
-                        textBoxcode.Text = sput[1];
+                        type = 0x02;
+                        textBoxfunc.Text = "功能码0x02：读输入离散量。\r\n";
                         break;
                     }
                 case 2:
                     {
-                        textBoxfunc.Text = "功能码0x03：读多个寄存器。\r\n" +
-                            "示例：\r\n" + sput[2];
-                        textBoxcode.Text = sput[2];
+                        type = 0x03;
+                        textBoxfunc.Text = "功能码0x03：读多个寄存器。\r\n";
                         break;
                     }
                 case 3:
                     {
-                        textBoxfunc.Text = "功能码0x04：读输入寄存器。\r\n" +
-                            "示例：\r\n" + sput[3];
-                        textBoxcode.Text = sput[3];
+                        type = 0x04;
+                        textBoxfunc.Text = "功能码0x04：读输入寄存器。\r\n";
                         break;
                     }
                 case 4:
                     {
-                        textBoxfunc.Text = "功能码0x05：写单个线圈。\r\n" +
-                            "示例：\r\n" + sput[4];
-                        textBoxcode.Text = sput[4];
+                        type = 0x05;
+                        textBoxfunc.Text = "功能码0x05：写单个线圈。\r\n";
                         break;
                     }
                 case 5:
                     {
-                        textBoxfunc.Text = "功能码0x06：写单个寄存器。\r\n" +
-                            "示例：\r\n" + sput[5];
-                        textBoxcode.Text = sput[5];
+                        type = 0x06;
+                        textBoxfunc.Text = "功能码0x06：写单个寄存器。\r\n";
                         break;
                     }
                 case 6:
                     {
-                        textBoxfunc.Text = "功能码0x0F：写多个线圈。\r\n" +
-                            "示例：\r\n" + sput[6];
-                        textBoxcode.Text = sput[6];
+                        type = 0x0F;
+                        textBoxfunc.Text = "功能码0x0F：写多个线圈。\r\n";
                         break;
                     }
                 case 7:
                     {
-                        textBoxfunc.Text = "功能码0x10：写多个寄存器。\r\n" +
-                            "示例：\r\n" + sput[7];
-                        textBoxcode.Text = sput[7];
+                        type = 0x10;
+                        textBoxfunc.Text = "功能码0x10：写多个寄存器。\r\n";
                         break;
                     }
                 case 8:
                     {
-                        textBoxfunc.Text = "功能码0x14：读文件记录。\r\n" +
-                            "示例：\r\n" + sput[8];
-                        textBoxcode.Text = sput[8];
+                        type = 0x14;
+                        textBoxfunc.Text = "功能码0x14：读文件记录。\r\n";
                         break;
                     }
                 case 9:
                     {
-                        textBoxfunc.Text = "功能码0x15：写文件记录。\r\n" +
-                            "示例：\r\n" + sput[9];
-                        textBoxcode.Text = sput[9];
+                        type = 0x15;
+                        textBoxfunc.Text = "功能码0x15：写文件记录。\r\n";
                         break;
                     }
                 case 10:
                     {
-                        textBoxfunc.Text = "功能码0x16：屏蔽写寄存器。\r\n" +
-                            "示例：\r\n" + sput[10];
-                        textBoxcode.Text = sput[10];
+                        type = 0x16;
+                        textBoxfunc.Text = "功能码0x16：屏蔽写寄存器。\r\n";
                         break;
                     }
                 case 11:
                     {
-                        textBoxfunc.Text = "功能码0x17：读/写多个寄存器。\r\n" +
-                            "示例：\r\n" + sput[11];
-                        textBoxcode.Text = sput[11];
+                        type = 0x17;
+                        textBoxfunc.Text = "功能码0x17：读/写多个寄存器。\r\n";
                         break;
                     }
                 case 12:
                     {
-                        textBoxfunc.Text = "功能码0x2B：读设备识别码。\r\n" +
-                            "示例：\r\n" + sput[12];
-                        textBoxcode.Text = sput[12];
+                        type = 0x18;
+                        textBoxfunc.Text = "功能码0x2B：读设备识别码。\r\n";
                         break;
                     }
+            }
+            refreshcode();
+        }
+
+        public void refreshcode()
+        {
+            //刷新功能码文本框
+            if (Clientmode == 1)
+            {
+                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mtcpc.GetTCPFrame(type, add, value)); }));
+            }
+            else if (Clientmode == 2)
+            {
+                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mrtuc.GetRTUFrame(type, add, value)); }));
+            }
+            else
+            {
+                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mudpc.GetUDPFrame(type, add, value)); }));
             }
         }
 
@@ -471,97 +377,54 @@ namespace Modbus_Client
             {
                 toolStripStatusLabel1.Text = "开始发送功能码……";
                 output("开始发送功能码……");
-                //把文本框里的字符串转化成字节数组
-                string strdata = textBoxcode.Text;
-                string[] strarray = strdata.Split(new char[] { '-' });
-                byte[] data = Array.ConvertAll<string, byte>(strarray, delegate (string s)
-                {
-                    return byte.Parse(s, System.Globalization.NumberStyles.HexNumber);
-                });
-                byte[] newdata = new byte[data.Length + 2];
-                if (Clientmode == 2)
-                {
-                    string crcs = getCrc16Code(data);
-                    data.CopyTo(newdata, 0);
-                    newdata[data.Length]= byte.Parse(crcs.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
-                    newdata[data.Length + 1] = byte.Parse(crcs.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
-                }
-                if (Clientmode == 1)
-                {
-                    send(data);
-                }
-                else if (Clientmode == 2)
-                {
-                    send_rtu(newdata);
-                }
-                else
-                {
-                    send_udp(data);
-                }
-            }
-        }
 
-        public void send(byte[] data)
-        {
-            try
-            {
-                newclient.Send(data);
-                toolStripStatusLabel1.Text = "发送成功！";
-                output("已发送功能码：" + BitConverter.ToString(data));
-            }
-            catch (Exception)
-            {
-                MessageBox.Show("发送失败！", "警告", MessageBoxButtons.OK);
-                toolStripStatusLabel1.Text = "发送失败！";
-                output("功能码发送失败。");
-            }
-        }
-
-        public void send_rtu(byte[] data)
-        {
-            try
-            {
-                comm.Write(data,0,data.Length);
-                toolStripStatusLabel1.Text = "发送成功！";
-                output("已发送功能码：" + BitConverter.ToString(data)+"（已自动添加CRC校验码）");
-            }
-            catch (Exception)
-            {
-                MessageBox.Show("发送失败！", "警告", MessageBoxButtons.OK);
-                toolStripStatusLabel1.Text = "发送失败！";
-                output("功能码发送失败。");
-            }
-        }
-
-        public void send_udp(byte[] data)
-        {
-            try
-            {
-                string ipaddress = textBoxip.Text.Trim();
-                int port = Convert.ToInt32(textBoxport.Text.Trim());//读取ip和端口号
-
-                //检测IP格式是否正确
-                IPAddress ipa;
-                if (!System.Net.IPAddress.TryParse(ipaddress, out ipa))
+                add = Convert.ToInt16(textBoxadd.Text, 16);
+                value = Convert.ToInt16(textBoxvalue.Text, 16);
+                refreshcode();
+                try
                 {
-                    MessageBox.Show("IP地址格式错误！", "警告", MessageBoxButtons.OK);
-                    toolStripStatusLabel1.Text = "IP错误！";
-                    output("未提供有效的IP地址。");
+                    if (Clientmode == 1)
+                    {
+                        byte[] data = mtcpc.Send(type, add, value);
+                        toolStripStatusLabel1.Text = "发送成功！";
+                        output("已发送功能码：" + BitConverter.ToString(data));
+                    }
+                    else if (Clientmode == 2)
+                    {
+                        byte[] data = mrtuc.Send(type, add, value);
+                        toolStripStatusLabel1.Text = "发送成功！";
+                        output("已发送功能码：" + BitConverter.ToString(data));
+                    }
+                    else
+                    {
+                        string ipaddress = textBoxip.Text.Trim();
+                        int port = Convert.ToInt32(textBoxport.Text.Trim());//读取ip和端口号
+
+                        //检测IP格式是否正确
+                        IPAddress ipa;
+                        if (!System.Net.IPAddress.TryParse(ipaddress, out ipa))
+                        {
+                            MessageBox.Show("IP地址格式错误！", "警告", MessageBoxButtons.OK);
+                            toolStripStatusLabel1.Text = "IP错误！";
+                            output("未提供有效的IP地址。");
+                        }
+                        //创建套接字
+                        else
+                        {
+                            IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
+                            byte[] data = mudpc.Send(type, add, value, ie);
+                            toolStripStatusLabel1.Text = "发送成功！";
+                            output("已向" + ipaddress + "/" + port + "发送功能码：" + BitConverter.ToString(data));
+                        }
+                    }
                 }
-                //创建套接字
-                else
+                catch (Exception ex)
                 {
-                    IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
-                    udpclient.SendTo(data,ie);
-                    toolStripStatusLabel1.Text = "发送成功！";
-                    output("已向"+ipaddress+"/"+port+"发送功能码：" + BitConverter.ToString(data));
-                } 
-            }
-            catch (Exception)
-            {
-                MessageBox.Show("发送失败！", "警告", MessageBoxButtons.OK);
-                toolStripStatusLabel1.Text = "发送失败！";
-                output("功能码发送失败。");
+                    MessageBox.Show("发送失败！", "警告", MessageBoxButtons.OK);
+                    toolStripStatusLabel1.Text = "发送失败！";
+                    output("功能码发送失败。"+ex.Message);
+                }
+               
             }
         }
 
@@ -595,25 +458,21 @@ namespace Modbus_Client
 
         private void buttondisconn_Click(object sender, EventArgs e)
         {
-            if (Clientmode == 1)
-            {
-                disconnect();
-            }
-            else if (Clientmode == 2)
-            {
-                disconnect_rtu();
-            }
-            else
-            {
-                disconnect_udp();
-            }
-        }
-
-        public void disconnect()
-        {
             try
             {
-                newclient.Close();
+                if (Clientmode == 1)
+                {
+                    mtcpc.Disconnect();
+                }
+                else if (Clientmode == 2)
+                {
+                    mrtuc.Disconnect();
+                }
+                else
+                {
+                    mudpc.Disconnect();
+                }
+                
                 MyInvoke output2 = new MyInvoke(output);
                 toolStripStatusLabel1.Text = "连接已断开。";
                 this.BeginInvoke(output2, new object[] { "与服务器的连接已断开。" });
@@ -622,47 +481,13 @@ namespace Modbus_Client
                 Connected = false;
                 unlockradio();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 MyInvoke output2 = new MyInvoke(output);
                 toolStripStatusLabel1.Text = "连接断开失败！";
-                this.BeginInvoke(output2, new object[] { "与服务器断开连接失败。" });
+                this.BeginInvoke(output2, new object[] { "与服务器断开连接失败。"+ex.Message });
             }
-        }
-
-        public void disconnect_rtu()
-        {
-            try
-            {
-                comm.Close();
-                MyInvoke output2 = new MyInvoke(output);
-                toolStripStatusLabel1.Text = "连接已断开。";
-                this.BeginInvoke(output2, new object[] { "与服务器的连接已断开。" });
-                buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
-                buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
-                Connected = false;
-                unlockradio();
-            }
-            catch (Exception)
-            {
-                MyInvoke output2 = new MyInvoke(output);
-                toolStripStatusLabel1.Text = "连接断开失败！";
-                this.BeginInvoke(output2, new object[] { "与服务器断开连接失败。" });
-            }
-        }
-
-        public void disconnect_udp()
-        {
-            udpclient.Dispose();
-            udpclient.Close();
             
-            MyInvoke output2 = new MyInvoke(output);
-            toolStripStatusLabel1.Text = "已释放资源。";
-            this.BeginInvoke(output2, new object[] { "已经关闭UDP模式。" });
-            buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
-            buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
-            Connected = false;
-            unlockradio();
         }
 
         private void radioButtontcp_CheckedChanged(object sender, EventArgs e)
@@ -717,6 +542,245 @@ namespace Modbus_Client
             {
                 e.Cancel = true;
             }
+        }
+
+    }
+
+    public class ModbusClient
+    {
+        //Modbus协议的基础类
+        public byte[] GetPDU(int type, short add, short value)
+        {
+            bool isbigendian = false;//windows是小字节序
+            //生成PDU，其他形式的继续重载就行
+            byte[] byteadd = BitConverter.GetBytes(Convert.ToInt16(add + 1));//地址从零开始不用+1
+            byte[] bytevalue = BitConverter.GetBytes(value);
+            if (!isbigendian)//如果是小字节序，需要调换一下位置
+            {
+                byte temp = byteadd[0];
+                byteadd[0] = byteadd[1];
+                byteadd[1] = temp;
+                temp = bytevalue[0];
+                bytevalue[0] = bytevalue[1];
+                bytevalue[1] = temp;
+            }
+            byte[] pdu = new byte[byteadd.Length + bytevalue.Length + 1];
+            pdu[0] = Convert.ToByte(type);
+            Buffer.BlockCopy(byteadd, 0, pdu, 1, byteadd.Length);
+            Buffer.BlockCopy(bytevalue, 0, pdu, byteadd.Length + 1, bytevalue.Length);            
+            return pdu;
+        }
+    }
+
+    public class ModbusTCPClient : ModbusClient
+    {
+        //用于ModbusTCP的类
+        public Socket newclient;
+
+        public void Connect(IPEndPoint ie)
+        {
+            //建立TCP连接
+            newclient = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            newclient.Connect(ie);
+        }
+
+        public void Disconnect()
+        {
+            //关闭TCP连接
+            newclient.Close();
+        }
+
+        public byte[] GetTCPFrame(int type, short add, short value)
+        {
+            //组装TCP帧
+            byte[] pdu = this.GetPDU(type, add, value);
+            byte pdulength = Convert.ToByte(pdu.Length + 1);
+            byte[] tcphead = { 0x00, 0x01, 0x00, 0x00, 0x00, pdulength, 0x01 };
+            byte[] tcpframe = new byte[pdu.Length + tcphead.Length];
+            Buffer.BlockCopy(tcphead, 0, tcpframe, 0, tcphead.Length);
+            Buffer.BlockCopy(pdu, 0, tcpframe, tcphead.Length, pdu.Length);
+            return tcpframe;
+        }
+
+        public byte[] Send(int type, short add, short value)
+        {
+            //发送功能码，并返回生成的功能码
+            byte[] data = GetTCPFrame(type, add, value);
+            newclient.Send(data);
+            return (data);
+        }
+
+        public void Send(byte[] data)
+        {
+            //重载一个可以发送任何数组的方法
+            newclient.Send(data);
+        }
+
+        public byte[] ReceiveMessage()
+        {
+            //接受信息
+            byte[] data = new byte[1024];
+            newclient.Receive(data);
+            return data;
+        }
+    }
+
+    public class ModbusRTUClient : ModbusClient
+    {
+        //用于ModbusRTU的类
+        public SerialPort comm = new SerialPort();
+        public SerialPort _comm = new SerialPort();
+
+        public void Connect(string com)
+        {
+            //建立RTU连接
+            comm.PortName = com;
+            comm.BaudRate = 9600;
+            comm.Parity = Parity.None;
+            comm.StopBits = StopBits.One;
+            comm.DataBits = 8;
+            comm.ReadBufferSize = 1024;
+            
+            comm.Open();
+        }
+
+        public void SetReceiveEvent(Action<object,SerialDataReceivedEventArgs> ReceMes)
+        {
+            //传入用于接收数据的方法
+            comm.DataReceived += new SerialDataReceivedEventHandler(ReceMes);
+        }
+
+        public void Disconnect()
+        {
+            //关闭RTU连接
+            comm.Close();
+        }
+
+        public byte[] GetRTUFrame(int type, short add, short value)
+        {
+            //组装RTU帧
+            byte[] pdu = this.GetPDU(type, add, value);
+            byte[] frame = new byte[pdu.Length + 1];
+            frame[0] = 1;
+            Buffer.BlockCopy(pdu, 0, frame, 1, pdu.Length);
+            byte[] rtuframe = new byte[frame.Length + 2];
+            string crcs = getCrc16Code(frame);
+            frame.CopyTo(rtuframe, 0);
+            rtuframe[frame.Length] = byte.Parse(crcs.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+            rtuframe[frame.Length + 1] = byte.Parse(crcs.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+            
+            return rtuframe;
+        }
+
+        public byte[] Send(int type, short add, short value)
+        {
+            //发送功能码，并返回生成的功能码
+            byte[] data = GetRTUFrame(type, add, value);
+            comm.Write(data, 0, data.Length);
+            return data;
+        }
+
+        public void Send(byte[] data)
+        {
+            //重载一个可以发送任何数组的方法
+            comm.Write(data, 0, data.Length);
+        }
+
+        public byte[] ReceiveMessage(SerialPort com)
+        {
+            byte[] data = new byte[1024];//定义数据接收数组
+            int length = comm.BytesToRead;
+            com.Read(data, 0, comm.BytesToRead);  //注意，read方法运行后bytestoread会归0，所以length定义要在前面。
+            byte[] datashow = new byte[length];//定义所要显示的接收的数据的长度
+            for (int i = 0; i < length; i++)//将要显示的数据存放到数组datashow中
+            {
+                datashow[i] = data[i];
+            }
+            return datashow;
+        }
+
+        public String getCrc16Code(byte[] crcbyte)
+        {
+            // 生成CRC校验码
+            // 转换成字节数组  
+            // 开始crc16校验码计算  
+            CRC16Util crc16 = new CRC16Util();
+            crc16.update(crcbyte);
+            uint crc = crc16.getCrcValue();//使用uint是因为使用int时最高位为1会变为负数。
+            // 16进制的CRC码  
+            String crcCode = Convert.ToString(crc, 16).ToUpper();
+            // 补足到4位  
+            if (crcCode.Length < 4)
+            {
+                crcCode = crcCode.PadLeft(4, '0');
+            }
+            return crcCode;
+        }
+    }
+
+    public class ModbusUDPClient : ModbusClient
+    {
+        //用于ModbusUDP的类
+        public Socket udpclient;
+
+        public void Connect()
+        {
+            //建立UDP Socket
+            udpclient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
+        }
+
+        public void Disconnect()
+        {
+            //关闭UDP连接
+            udpclient.Dispose();
+            udpclient.Close();
+        }
+
+        public byte[] GetUDPFrame(int type, short add, short value)
+        {
+            //组装UDP帧
+            byte[] pdu = this.GetPDU(type, add, value);
+            byte pdulength = Convert.ToByte(pdu.Length + 1);
+            byte[] udphead = { 0x00, 0x01, 0x00, 0x00, 0x00, pdulength, 0x01 };
+            byte[] udpframe = new byte[pdu.Length + udphead.Length];
+            Buffer.BlockCopy(udphead, 0, udpframe, 0, udphead.Length);
+            Buffer.BlockCopy(pdu, 0, udpframe, udphead.Length, pdu.Length);
+            return udpframe;
+        }
+
+        public byte[] Send(int type, short add, short value, IPEndPoint ie)
+        {
+            //发送功能码，并返回生成的功能码
+            byte[] data = GetUDPFrame(type, add, value);
+            udpclient.SendTo(data, ie);
+            return (data);
+        }
+
+        public void Send(byte[] data, IPEndPoint ie)
+        {
+            //重载一个可以发送任何数组的方法
+            udpclient.SendTo(data, ie);
+        }
+
+        public byte[] ReceiveMessage(IPEndPoint remote)
+        {
+            //接受信息
+            UdpClient udpreceive = new UdpClient(remote);
+            EndPoint remoteEP = (EndPoint)remote;
+            byte[] data = udpreceive.Receive(ref remote);
+            int length = data[5];//读取数据长度
+            Byte[] datashow = new byte[length + 6];//定义所要显示的接收的数据的长度
+            for (int i = 0; i < length + 6; i++)//将要显示的数据存放到数组datashow中
+            {
+                if (i == data.Length)
+                {
+                    break;
+                }
+                datashow[i] = data[i];
+            }
+            udpreceive.Close();
+            return data;
         }
     }
     public class CRC16Util
