@@ -226,7 +226,7 @@ namespace Modbus_Client
         {
             while (true)
             {
-                IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text) - 1);
+                IPEndPoint remote = new IPEndPoint(IPAddress.Any, Convert.ToInt16(textBoxport.Text));
                 byte[] datashow = mudpc.ReceiveMessage(remote);
                 string stringdata = BitConverter.ToString(datashow);//把数组转换成16进制字符串
 
