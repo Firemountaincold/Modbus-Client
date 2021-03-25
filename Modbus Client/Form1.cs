@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using System.Threading;
 using System.IO.Ports;
+using System.IO;
 
 namespace Modbus_Client
 {
@@ -14,9 +15,14 @@ namespace Modbus_Client
         public ModbusTCPClient mtcpc = new ModbusTCPClient();
         public ModbusRTUClient mrtuc = new ModbusRTUClient();
         public ModbusUDPClient mudpc = new ModbusUDPClient();
+        public FTPClient ftpclient;
+        public FTPconfig fconfig;
         //创建标志
         public bool Connected = false;
         public int Clientmode = 1;//客户端模式，1=TCP；2=RTU，3=UDP
+        public bool istext = true;
+        public bool isreadconfig = false;
+        public bool iscreateconfig = false;
         //创建线程
         public Thread connThread;
         public Thread receThread;
@@ -27,6 +33,7 @@ namespace Modbus_Client
         public int type=0x01;
         public short add=0x00;
         public short value=0x00;
+
         public Form1()
         {
             InitializeComponent();
@@ -152,6 +159,11 @@ namespace Modbus_Client
             textBoxinfo.BeginInvoke(new Action(() => { textBoxinfo.Text += DateTime.Now.ToString() + "  " + str + "\r\n"; }));
             textBoxinfo.BeginInvoke(new Action(() => { textBoxinfo.SelectionStart = textBoxinfo.Text.Length; }));
             textBoxinfo.BeginInvoke(new Action(() => { textBoxinfo.ScrollToCaret(); }));
+        }
+
+        public void outputconfig(string str)
+        {
+            textBoxconfig.BeginInvoke(new Action(() => { textBoxconfig.Text +=  str + "\r\n"; }));
         }
 
         public void receivemess()
@@ -544,6 +556,181 @@ namespace Modbus_Client
             }
         }
 
+        private void buttontab_Click(object sender, EventArgs e)
+        {
+            //切换视图用
+            if (istext)
+            {
+                textBoxinfo.Clear();
+                istext = false;
+                buttontab.Text = "切换到Modbus模式";
+                toolStripStatusLabel1.Text = "已切换到FTP模式。";
+                groupBox1.Enabled = false;
+                groupBox2.Enabled = false;
+                groupBox3.Enabled = true;
+            }
+            else
+            {
+                textBoxinfo.Clear();
+                istext = true;
+                buttontab.Text = "切换到FTP模式";
+                toolStripStatusLabel1.Text = "已切换到Modbus模式。";
+                groupBox1.Enabled = true;
+                groupBox2.Enabled = true;
+                groupBox3.Enabled = false;
+            }
+
+        }
+
+        public void readconfig(string configpath)
+        {
+            //读取配置文件
+            try
+            {
+                string[] configs = File.ReadAllLines(configpath);
+                for (int i = 0; i < 7; i++)
+                {
+                    string[] temp = configs[i].Split('=');
+                    configs[i] = temp[1];
+                }
+                ftpclient = new FTPClient(configs[0].Trim(), configs[1].Trim(), configs[2].Trim(), configs[3].Trim());
+                //如果FTP路径没有/，加上。
+                if (!configs[6].StartsWith("/"))
+                {
+                    configs[6] = "/" + configs[6];
+                }
+                fconfig = new FTPconfig(configs[0].Trim(), configs[1].Trim(), configs[2].Trim(), configs[3].Trim(), configs[4].Trim(), configs[5].Trim(), configs[6].Trim());
+                output("已读取配置文件。");
+                textBoxconfig.Clear();
+                outputconfig("=======================================");
+                outputconfig("FTP服务器地址：" + fconfig.ipadd);
+                outputconfig("端口：         " + fconfig.port);
+                outputconfig("用户名：       " + fconfig.username);
+                outputconfig("密码：         " + fconfig.password);
+                if (fconfig.method == "download")
+                {
+                    outputconfig("方法：         下载文件");
+                }
+                else if (fconfig.method == "delete")
+                {
+                    outputconfig("方法：         删除文件");
+                }
+                else if (fconfig.method == "upload")
+                {
+                    outputconfig("方法：         上传文件");
+                }
+                else
+                {
+                    output("错误：请在配置文件中使用download，delete和upload方法。");
+                }
+                outputconfig("本地文件位置： " + fconfig.localpath);
+                outputconfig("FTP文件路径：  " + fconfig.geturi().ToString());
+                outputconfig("=======================================");
+                isreadconfig = true;
+            }
+            catch (Exception e)
+            {
+                output("错误：" + e.Message);
+            }
+        }
+
+        private void buttonload_Click(object sender, EventArgs e)
+        {
+            string filepath;
+            OpenFileDialog dlgOpenFile = new OpenFileDialog { Filter = "FTP配置文件(*.txt)|*.txt" };
+            if (dlgOpenFile.ShowDialog() == DialogResult.OK)//OK表示按下了“打开”
+            {
+                filepath = dlgOpenFile.FileName;
+                readconfig(filepath);
+            }
+            toolStripStatusLabel1.Text = "加载成功！";
+        }
+
+        private void buttoncreate_Click(object sender, EventArgs e)
+        {
+            if (!iscreateconfig)
+            {
+                buttoncreate.Text = "保存配置文件";
+                textBoxconfig.Clear();
+                outputconfig("FTP服务器地址：" );
+                outputconfig("端口：" );
+                outputconfig("用户名：" );
+                outputconfig("密码：" );
+                outputconfig("方法：");
+                outputconfig("本地文件位置：" );
+                outputconfig("FTP文件路径：" );
+                textBoxconfig.ReadOnly = false;
+                iscreateconfig = true;
+                toolStripStatusLabel1.Text = "开始创建配置文件。";
+            }
+            else
+            {
+                buttoncreate.Text = "创建配置文件";
+                StreamWriter sw = new StreamWriter("config.txt", false);
+                sw.Write(textBoxconfig.Text.Replace("：","=").Replace("FTP服务器地址","ip").Replace("端口", 
+                    "port").Replace("用户名", "username").Replace("密码", "password").Replace("方法",
+                    "method").Replace("本地文件位置", "localpath").Replace("FTP文件路径", "ftppath"));
+                sw.WriteLine();
+                sw.Close(); 
+                textBoxconfig.Clear();
+                outputconfig("配置文件已保存。");
+                toolStripStatusLabel1.Text = "配置文件创建成功！";
+                textBoxconfig.ReadOnly = true;
+                iscreateconfig = false;
+            }
+        }
+
+        private void buttondo_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (isreadconfig)
+                {
+                    if (fconfig.method == "download")
+                    {
+                        string info = ftpclient.download(fconfig.geturi(), fconfig.localpath);
+                        output(info);
+                        toolStripStatusLabel1.Text = "下载成功！";
+                    }
+                    else if (fconfig.method == "delete")
+                    {
+                        string info = ftpclient.delete(fconfig.geturi());
+                        output(info);
+                        toolStripStatusLabel1.Text = "删除成功！";
+                    }
+                    else if (fconfig.method == "upload")
+                    {
+                        string info = ftpclient.upload(fconfig.geturi(), fconfig.localpath);
+                        output(info);
+                        toolStripStatusLabel1.Text = "上传成功！";
+                    }
+                    else
+                    {
+                        MessageBox.Show("错误：请使用download，delete和upload方法。","警告");
+                        toolStripStatusLabel1.Text = "出现错误！";
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("错误：请先读取配置文件。", "警告");
+                    toolStripStatusLabel1.Text = "出现错误！";
+                }
+            }
+            catch(Exception ex)
+            {
+                output("错误：" + ex.Message);
+                toolStripStatusLabel1.Text = "出现错误！";
+            }
+        }
+
+        private void buttonexit2_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("是否退出软件？", "询问", MessageBoxButtons.OKCancel) == DialogResult.OK)
+            {
+                Process.GetCurrentProcess().Kill();
+                Application.Exit();
+            }
+        }
     }
 
     public class ModbusClient
@@ -867,6 +1054,152 @@ namespace Modbus_Client
         public uint getCrcValue()
         {
             return value;
+        }
+    }
+
+    public class FTPconfig
+    {
+        //一个FTP配置文件的类
+        public string ipadd;
+        public string port;
+        public string username;
+        public string password;
+        public string method;
+        public string localpath;
+        public string ftppath;
+
+        public FTPconfig(string ipadd, string port, string username, string password, string method, string localpath, string ftppath)
+        {
+            //构造函数
+            this.ipadd = ipadd;
+            this.port = port;
+            this.username = username;
+            this.password = password;
+            this.method = method;
+            this.localpath = localpath;
+            this.ftppath = ftppath;
+        }
+
+        public Uri geturi()
+        {
+            string url = string.Format("ftp://{0}:{1}{2}", ipadd, port, ftppath).Replace('\\', '/');
+            Uri uri = new Uri(url);
+            return uri;
+        }
+    }
+
+    public class FTPClient
+    {
+        //构造FTP客户端的类
+        //属性
+        public string ipadd;
+        public string path;
+        public string port;
+        public string username;
+        public string password;
+        private FtpWebRequest request;
+
+        public FTPClient(string ipadd,string port,string username,string password)
+        {
+            //构造函数
+            this.ipadd = ipadd;
+            this.port = port;
+            this.username = username;
+            this.password = password;
+        }
+
+        private void connectftp(string method, Uri url)
+        {
+            //设置FTP操作
+            request= (FtpWebRequest)FtpWebRequest.Create(url);
+            request.Credentials = new NetworkCredential(username, password);
+            request.KeepAlive = false;//因为每次都要调用一次，所以不需要保持连接
+            request.Method = method;
+        }
+
+        public string download(Uri uri, string localpath)
+        {
+            //下载
+            if (uri.Scheme != Uri.UriSchemeFtp)
+            {
+                return "FTP链接格式错误。";
+            }
+            string method = WebRequestMethods.Ftp.DownloadFile;
+            try
+            {
+                connectftp(method, uri);
+                string info;
+                using (Stream ftpStream = request.GetResponse().GetResponseStream())
+                using (Stream fileStream = File.Create(localpath))
+                {
+                    byte[] buffer = new byte[10240];
+                    int read;
+                    while ((read = ftpStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        fileStream.Write(buffer, 0, read);
+                    }
+                    info = "已完成"+fileStream.Position.ToString()+"字节的下载。";
+                }
+                return info;
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        public string delete(Uri uri)
+        {
+            //删除
+            if (uri.Scheme != Uri.UriSchemeFtp)
+            {
+                return "FTP链接格式错误。";
+            }
+            string method = WebRequestMethods.Ftp.DeleteFile;
+            try
+            {
+                connectftp(method, uri);
+                FtpWebResponse response = (FtpWebResponse)request.GetResponse();
+                string info = response.StatusDescription;
+                response.Close();
+                return info.Replace("\r\n","").Replace("250 File deleted successfully","文件已被成功删除。");
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        public string upload(Uri uri, string localpath)
+        {
+            //上传
+            if (uri.Scheme != Uri.UriSchemeFtp)
+            {
+                return "FTP链接格式错误。";
+            }
+            string method = WebRequestMethods.Ftp.UploadFile;
+            string info;
+            try
+            {
+                connectftp(method, uri);
+                using (Stream ftpStream = request.GetRequestStream())
+                using (Stream fileStream = File.OpenRead(localpath))
+                {
+                    byte[] buffer = new byte[10240];
+                    int read;
+                    while ((read = fileStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        ftpStream.Write(buffer, 0, read);
+                    }
+                    info= "已完成" + fileStream.Position.ToString() + "字节的上传。";
+                }
+                return info;
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+
         }
     }
 }

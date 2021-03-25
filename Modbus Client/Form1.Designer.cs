@@ -47,6 +47,7 @@ namespace Modbus_Client
             this.textBoxcom = new System.Windows.Forms.TextBox();
             this.label8 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.buttonexit = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
             this.comboBoxcode = new System.Windows.Forms.ComboBox();
             this.buttonsend = new System.Windows.Forms.Button();
@@ -61,12 +62,18 @@ namespace Modbus_Client
             this.label9 = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.textBoxinfo = new System.Windows.Forms.TextBox();
-            this.buttonexit = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.textBoxconfig = new System.Windows.Forms.TextBox();
+            this.buttoncreate = new System.Windows.Forms.Button();
+            this.buttonload = new System.Windows.Forms.Button();
+            this.buttonexit2 = new System.Windows.Forms.Button();
+            this.buttondo = new System.Windows.Forms.Button();
+            this.buttontab = new System.Windows.Forms.Button();
+            this.textBoxinfo = new System.Windows.Forms.TextBox();
             this.statusStrip1.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.groupBox3.SuspendLayout();
             this.SuspendLayout();
             // 
             // timersend
@@ -228,6 +235,16 @@ namespace Modbus_Client
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "服务器信息";
             // 
+            // buttonexit
+            // 
+            this.buttonexit.Location = new System.Drawing.Point(365, 152);
+            this.buttonexit.Name = "buttonexit";
+            this.buttonexit.Size = new System.Drawing.Size(132, 40);
+            this.buttonexit.TabIndex = 10;
+            this.buttonexit.Text = "退出程序";
+            this.buttonexit.UseVisualStyleBackColor = true;
+            this.buttonexit.Click += new System.EventHandler(this.buttonexit_Click);
+            // 
             // label3
             // 
             this.label3.AutoSize = true;
@@ -375,28 +392,14 @@ namespace Modbus_Client
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "功能码发送";
             // 
-            // textBoxinfo
-            // 
-            this.textBoxinfo.Location = new System.Drawing.Point(554, 7);
-            this.textBoxinfo.Multiline = true;
-            this.textBoxinfo.Name = "textBoxinfo";
-            this.textBoxinfo.ReadOnly = true;
-            this.textBoxinfo.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxinfo.Size = new System.Drawing.Size(574, 633);
-            this.textBoxinfo.TabIndex = 8;
-            // 
-            // buttonexit
-            // 
-            this.buttonexit.Location = new System.Drawing.Point(365, 152);
-            this.buttonexit.Name = "buttonexit";
-            this.buttonexit.Size = new System.Drawing.Size(132, 40);
-            this.buttonexit.TabIndex = 10;
-            this.buttonexit.Text = "退出程序";
-            this.buttonexit.UseVisualStyleBackColor = true;
-            this.buttonexit.Click += new System.EventHandler(this.buttonexit_Click);
-            // 
             // groupBox3
             // 
+            this.groupBox3.Controls.Add(this.textBoxconfig);
+            this.groupBox3.Controls.Add(this.buttoncreate);
+            this.groupBox3.Controls.Add(this.buttonload);
+            this.groupBox3.Controls.Add(this.buttonexit2);
+            this.groupBox3.Controls.Add(this.buttondo);
+            this.groupBox3.Enabled = false;
             this.groupBox3.Location = new System.Drawing.Point(13, 421);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(535, 219);
@@ -404,14 +407,84 @@ namespace Modbus_Client
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "FTP服务器";
             // 
+            // textBoxconfig
+            // 
+            this.textBoxconfig.Location = new System.Drawing.Point(12, 18);
+            this.textBoxconfig.Multiline = true;
+            this.textBoxconfig.Name = "textBoxconfig";
+            this.textBoxconfig.ReadOnly = true;
+            this.textBoxconfig.Size = new System.Drawing.Size(323, 187);
+            this.textBoxconfig.TabIndex = 13;
+            // 
+            // buttoncreate
+            // 
+            this.buttoncreate.Location = new System.Drawing.Point(342, 117);
+            this.buttoncreate.Name = "buttoncreate";
+            this.buttoncreate.Size = new System.Drawing.Size(169, 40);
+            this.buttoncreate.TabIndex = 12;
+            this.buttoncreate.Text = "创建配置文件";
+            this.buttoncreate.UseVisualStyleBackColor = true;
+            this.buttoncreate.Click += new System.EventHandler(this.buttoncreate_Click);
+            // 
+            // buttonload
+            // 
+            this.buttonload.Location = new System.Drawing.Point(342, 18);
+            this.buttonload.Name = "buttonload";
+            this.buttonload.Size = new System.Drawing.Size(171, 40);
+            this.buttonload.TabIndex = 11;
+            this.buttonload.Text = "载入配置文件";
+            this.buttonload.UseVisualStyleBackColor = true;
+            this.buttonload.Click += new System.EventHandler(this.buttonload_Click);
+            // 
+            // buttonexit2
+            // 
+            this.buttonexit2.Location = new System.Drawing.Point(342, 165);
+            this.buttonexit2.Name = "buttonexit2";
+            this.buttonexit2.Size = new System.Drawing.Size(170, 40);
+            this.buttonexit2.TabIndex = 9;
+            this.buttonexit2.Text = "退出程序";
+            this.buttonexit2.UseVisualStyleBackColor = true;
+            this.buttonexit2.Click += new System.EventHandler(this.buttonexit2_Click);
+            // 
+            // buttondo
+            // 
+            this.buttondo.Location = new System.Drawing.Point(342, 68);
+            this.buttondo.Name = "buttondo";
+            this.buttondo.Size = new System.Drawing.Size(170, 40);
+            this.buttondo.TabIndex = 8;
+            this.buttondo.Text = "执行";
+            this.buttondo.UseVisualStyleBackColor = true;
+            this.buttondo.Click += new System.EventHandler(this.buttondo_Click);
+            // 
+            // buttontab
+            // 
+            this.buttontab.Location = new System.Drawing.Point(558, 13);
+            this.buttontab.Name = "buttontab";
+            this.buttontab.Size = new System.Drawing.Size(570, 43);
+            this.buttontab.TabIndex = 12;
+            this.buttontab.Text = "切换到FTP视图";
+            this.buttontab.UseVisualStyleBackColor = true;
+            this.buttontab.Click += new System.EventHandler(this.buttontab_Click);
+            // 
+            // textBoxinfo
+            // 
+            this.textBoxinfo.Location = new System.Drawing.Point(561, 62);
+            this.textBoxinfo.Multiline = true;
+            this.textBoxinfo.Name = "textBoxinfo";
+            this.textBoxinfo.ReadOnly = true;
+            this.textBoxinfo.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBoxinfo.Size = new System.Drawing.Size(567, 572);
+            this.textBoxinfo.TabIndex = 13;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1140, 669);
+            this.Controls.Add(this.textBoxinfo);
+            this.Controls.Add(this.buttontab);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.statusStrip1);
-            this.Controls.Add(this.textBoxinfo);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.groupBox1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -427,6 +500,8 @@ namespace Modbus_Client
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -464,9 +539,15 @@ namespace Modbus_Client
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.TextBox textBoxinfo;
         private System.Windows.Forms.Button buttonexit;
         private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.Button buttontab;
+        private System.Windows.Forms.Button buttonexit2;
+        private System.Windows.Forms.Button buttondo;
+        private System.Windows.Forms.Button buttoncreate;
+        private System.Windows.Forms.Button buttonload;
+        public System.Windows.Forms.TextBox textBoxinfo;
+        private System.Windows.Forms.TextBox textBoxconfig;
     }
 }
 

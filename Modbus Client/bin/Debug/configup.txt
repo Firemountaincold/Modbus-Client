@@ -1,0 +1,7 @@
+ip=10.66.126.152
+port=21
+username=user
+password=111111
+method=upload
+localpath=D:\C\test.txt
+ftppath=//k.txt
