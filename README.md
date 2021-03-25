@@ -2,6 +2,9 @@
 支持TCP、RTU、UDP的Modbus客户端工具。并带有FTP功能。
 
 ## 窗口：
+### Modbus客户端模式：
+![image](https://github.com/Firemountaincold/Modbus-Client/blob/main/Image2.png)
+### FTP客户端模式：  
 ![image](https://github.com/Firemountaincold/Modbus-Client/blob/main/Image.png)
 
 ## 更新文档： 
@@ -21,7 +24,7 @@
 修复了有关UDP连接导致程序崩溃的两个bug。
 ### 2021.3.22：
 #### 1.5：
-完善了UDP功能，现在用501端口接受消息。
+完善了UDP功能。
 ### 2021.3.23：
 #### 1.6：
 大幅重构了代码，并为将要加入的FTP功能调整了窗口布局。
