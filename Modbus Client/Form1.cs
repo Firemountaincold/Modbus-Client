@@ -18,11 +18,12 @@ namespace Modbus_Client
         public FTPClient ftpclient;
         public FTPconfig fconfig;
         //创建标志
-        public bool Connected = false;
+        public bool Connected = false;//是否已连接
         public int Clientmode = 1;//客户端模式，1=TCP；2=RTU，3=UDP
-        public bool istext = true;
-        public bool isreadconfig = false;
-        public bool iscreateconfig = false;
+        public bool ishuman = false;//是否手动输入功能码
+        public bool istext = true;//是否处于modbus模式
+        public bool isreadconfig = false;//是否已读取配置文件
+        public bool iscreateconfig = false;//是否正创建配置文件
         //创建线程
         public Thread connThread;
         public Thread receThread;
@@ -176,11 +177,11 @@ namespace Modbus_Client
                     data = mtcpc.ReceiveMessage();//接收数据到data数组
 
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
                     MyInvoke output2 = new MyInvoke(output);
                     toolStripStatusLabel1.Text = "连接失败！";
-                    this.BeginInvoke(output2, new object[] { "连接出现了错误。" });
+                    this.BeginInvoke(output2, new object[] { "连接出现了错误。"+e.Message });
                     buttonconn.BeginInvoke(new Action(() => { buttonconn.Enabled = true; }));
                     buttonconn.BeginInvoke(new Action(() => { buttondisconn.Enabled = false; }));
                     break;
@@ -282,79 +283,105 @@ namespace Modbus_Client
                 case 0:
                     {
                         type = 0x01;
-                        textBoxfunc.Text = "功能码0x01：读线圈。\r\n";
+                        textBoxfunc.Text = "读线圈。请输入起始地址和输出数量。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 1:
                     {
                         type = 0x02;
-                        textBoxfunc.Text = "功能码0x02：读输入离散量。\r\n";
+                        textBoxfunc.Text = "读输入离散量。请输入起始地址和输出数量。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 2:
                     {
                         type = 0x03;
-                        textBoxfunc.Text = "功能码0x03：读多个寄存器。\r\n";
+                        textBoxfunc.Text = "读多个寄存器。请输入起始地址和寄存器数量。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 3:
                     {
                         type = 0x04;
-                        textBoxfunc.Text = "功能码0x04：读输入寄存器。\r\n";
+                        textBoxfunc.Text = "读输入寄存器。请输入起始地址和寄存器数量。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 4:
                     {
                         type = 0x05;
-                        textBoxfunc.Text = "功能码0x05：写单个线圈。\r\n";
+                        textBoxfunc.Text = "写单个线圈。请输入地址和值（FF00为ON，0000为OFF）。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 5:
                     {
                         type = 0x06;
-                        textBoxfunc.Text = "功能码0x06：写单个寄存器。\r\n";
+                        textBoxfunc.Text = "写单个寄存器。请输入地址和值。";
+                        ishuman = false;
+                        textBoxcode.ReadOnly = true;
                         break;
                     }
                 case 6:
                     {
                         type = 0x0F;
-                        textBoxfunc.Text = "功能码0x0F：写多个线圈。\r\n";
+                        textBoxfunc.Text = "写多个线圈。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 7:
                     {
                         type = 0x10;
-                        textBoxfunc.Text = "功能码0x10：写多个寄存器。\r\n";
+                        textBoxfunc.Text = "写多个寄存器。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 8:
                     {
                         type = 0x14;
-                        textBoxfunc.Text = "功能码0x14：读文件记录。\r\n";
+                        textBoxfunc.Text = "读文件记录。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 9:
                     {
                         type = 0x15;
-                        textBoxfunc.Text = "功能码0x15：写文件记录。\r\n";
+                        textBoxfunc.Text = "写文件记录。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 10:
                     {
                         type = 0x16;
-                        textBoxfunc.Text = "功能码0x16：屏蔽写寄存器。\r\n";
+                        textBoxfunc.Text = "屏蔽写寄存器。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 11:
                     {
                         type = 0x17;
-                        textBoxfunc.Text = "功能码0x17：读/写多个寄存器。\r\n";
+                        textBoxfunc.Text = "读/写多个寄存器。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
                 case 12:
                     {
                         type = 0x18;
-                        textBoxfunc.Text = "功能码0x2B：读设备识别码。\r\n";
+                        textBoxfunc.Text = "读设备识别码。请手动输入。";
+                        ishuman = true;
+                        textBoxcode.ReadOnly = false;
                         break;
                     }
             }
@@ -364,17 +391,24 @@ namespace Modbus_Client
         public void refreshcode()
         {
             //刷新功能码文本框
-            if (Clientmode == 1)
+            if (!ishuman)
             {
-                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mtcpc.GetTCPFrame(type, add, value)); }));
-            }
-            else if (Clientmode == 2)
-            {
-                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mrtuc.GetRTUFrame(type, add, value)); }));
+                if (Clientmode == 1)
+                {
+                    textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mtcpc.GetTCPFrame(type, add, value)); }));
+                }
+                else if (Clientmode == 2)
+                {
+                    textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mrtuc.GetRTUFrame(type, add, value)); }));
+                }
+                else
+                {
+                    textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mudpc.GetUDPFrame(type, add, value)); }));
+                }
             }
             else
             {
-                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = BitConverter.ToString(mudpc.GetUDPFrame(type, add, value)); }));
+                textBoxcode.BeginInvoke(new Action(() => { textBoxcode.Text = "请输入功能码"; }));
             }
         }
 
@@ -395,17 +429,45 @@ namespace Modbus_Client
                 refreshcode();
                 try
                 {
-                    if (Clientmode == 1)
+                        if (Clientmode == 1)
                     {
-                        byte[] data = mtcpc.Send(type, add, value);
+                        if (!ishuman)
+                        {
+                            byte[] data = mtcpc.Send(type, add, value);
+                            output("已发送功能码：" + BitConverter.ToString(data));
+                        }
+                        else
+                        {
+                            string[] temp = textBoxcode.Text.Split('-');
+                            byte[] data = new byte[temp.Length];
+                            for (int i = 0; i < temp.Length; i++)
+                            {
+                                data[i]= byte.Parse(temp[i], System.Globalization.NumberStyles.HexNumber); 
+                            }
+                            mtcpc.Send(data);
+                            output("已发送功能码：" + BitConverter.ToString(data));
+                        }
                         toolStripStatusLabel1.Text = "发送成功！";
-                        output("已发送功能码：" + BitConverter.ToString(data));
                     }
                     else if (Clientmode == 2)
                     {
-                        byte[] data = mrtuc.Send(type, add, value);
+                        if (!ishuman)
+                        {
+                            byte[] data = mrtuc.Send(type, add, value);
+                            output("已发送功能码：" + BitConverter.ToString(data));
+                        }
+                        else
+                        {
+                            string[] temp = textBoxcode.Text.Split('-');
+                            byte[] data = new byte[temp.Length];
+                            for (int i = 0; i < temp.Length; i++)
+                            {
+                                data[i] = byte.Parse(temp[i], System.Globalization.NumberStyles.HexNumber);
+                            }
+                            mrtuc.Send(data);
+                            output("已发送功能码：" + BitConverter.ToString(data));
+                        }
                         toolStripStatusLabel1.Text = "发送成功！";
-                        output("已发送功能码：" + BitConverter.ToString(data));
                     }
                     else
                     {
@@ -424,9 +486,23 @@ namespace Modbus_Client
                         else
                         {
                             IPEndPoint ie = new IPEndPoint(IPAddress.Parse(ipaddress), port);
-                            byte[] data = mudpc.Send(type, add, value, ie);
+                            if (!ishuman)
+                            {
+                                byte[] data = mudpc.Send(type, add, value, ie);
+                                output("已向" + ipaddress + "/" + port + "发送功能码：" + BitConverter.ToString(data));
+                            }
+                            else
+                            {
+                                string[] temp = textBoxcode.Text.Split('-');
+                                byte[] data = new byte[temp.Length];
+                                for (int i = 0; i < temp.Length; i++)
+                                {
+                                    data[i] = byte.Parse(temp[i], System.Globalization.NumberStyles.HexNumber);
+                                }
+                                mudpc.Send(data, ie);
+                                output("已向" + ipaddress + "/" + port + "发送功能码：" + BitConverter.ToString(data));
+                            }
                             toolStripStatusLabel1.Text = "发送成功！";
-                            output("已向" + ipaddress + "/" + port + "发送功能码：" + BitConverter.ToString(data));
                         }
                     }
                 }
@@ -738,8 +814,9 @@ namespace Modbus_Client
         //Modbus协议的基础类
         public byte[] GetPDU(int type, short add, short value)
         {
-            bool isbigendian = false;//windows是小字节序
             //生成PDU，其他形式的继续重载就行
+            //可用于功能码0x01,0x02,0x03,0x04,0x05,0x06
+            bool isbigendian = false;//windows是小字节序
             byte[] byteadd = BitConverter.GetBytes(Convert.ToInt16(add + 1));//地址从零开始不用+1
             byte[] bytevalue = BitConverter.GetBytes(value);
             if (!isbigendian)//如果是小字节序，需要调换一下位置
@@ -972,7 +1049,7 @@ namespace Modbus_Client
     }
     public class CRC16Util
     {
-
+        //一个用于获取CRC校验码的类
         private uint value = 0x0000;
 
         static byte[] ArrayCRCHigh =

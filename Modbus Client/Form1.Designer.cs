@@ -344,6 +344,7 @@ namespace Modbus_Client
             this.textBoxadd.Name = "textBoxadd";
             this.textBoxadd.Size = new System.Drawing.Size(55, 25);
             this.textBoxadd.TabIndex = 9;
+            this.textBoxadd.Text = "00";
             // 
             // textBoxvalue
             // 
@@ -351,6 +352,7 @@ namespace Modbus_Client
             this.textBoxvalue.Name = "textBoxvalue";
             this.textBoxvalue.Size = new System.Drawing.Size(55, 25);
             this.textBoxvalue.TabIndex = 10;
+            this.textBoxvalue.Text = "00";
             // 
             // label9
             // 
