@@ -1,5 +1,5 @@
 # Modbus-Client
-支持TCP、RTU、UDP的Modbus客户端工具。并带有FTP功能。
+C#新手练手之作。支持TCP、RTU、UDP的Modbus客户端工具。并带有FTP功能。
 
 ## 窗口：
 ### Modbus客户端模式：
